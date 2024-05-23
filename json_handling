@@ -1,0 +1,43 @@
+// First step: Load Raw JSON
+
+create or replace schema manage_db.external_stages;
+create or replace schema manage_db.file_formats;
+create or replace database our_first_db;
+
+CREATE OR REPLACE stage MANAGE_DB.EXTERNAL_STAGES.JSONSTAGE
+     url='s3://bucketsnowflake-jsondemo';
+
+CREATE OR REPLACE file format MANAGE_DB.FILE_FORMATS.JSONFORMAT
+    TYPE = JSON;
+    
+    
+CREATE OR REPLACE table OUR_FIRST_DB.PUBLIC.JSON_RAW (
+    raw_file variant);
+    
+COPY INTO OUR_FIRST_DB.PUBLIC.JSON_RAW
+    FROM @MANAGE_DB.EXTERNAL_STAGES.JSONSTAGE
+    file_format= MANAGE_DB.FILE_FORMATS.JSONFORMAT
+    files = ('HR_data.json');
+   
+SELECT * FROM OUR_FIRST_DB.PUBLIC.JSON_RAW;
+
+create or replace table our_first_db.public.processed_json as
+SELECT 
+    RAW_FILE:id::int id,  -- attribute names are case sensitve, ID won't work
+    $1:first_name::STRING first_name, -- $1 can be used in place of raw_file as well
+    RAW_FILE:last_name::STRING last_name,
+    RAW_FILE:gender::STRING gender,
+    RAW_FILE:job.salary::INT salary,
+    RAW_FILE:job.title::STRING title,
+    ARRAY_SIZE(RAW_FILE:prev_company) num_prev_company,
+    RAW_FILE:prev_company[0]::STRING prev_company,
+    RAW_FILE:prev_company[1]::STRING prev_prev_company,
+FROM OUR_FIRST_DB.PUBLIC.JSON_RAW ;
+
+select * from our_first_db.public.processed_json;
+
+select 
+raw_file:first_name::string first_name,
+f.value:language::STRING First_language,
+f.value:level::STRING Level_spoken
+from OUR_FIRST_DB.PUBLIC.JSON_RAW, table(flatten(RAW_FILE:spoken_languages)) f;
