@@ -1,0 +1,37 @@
+CREATE OR REPLACE FILE FORMAT MANAGE_DB.FILE_FORMATS.PARQUETFORMAT
+    TYPE = 'parquet';
+
+CREATE OR REPLACE STAGE MANAGE_DB.EXTERNAL_STAGES.PARQUETSTAGE
+    url = 's3://snowflakeparquetdemo'   
+    FILE_FORMAT = MANAGE_DB.FILE_FORMATS.PARQUETFORMAT;
+    
+LIST  @MANAGE_DB.EXTERNAL_STAGES.PARQUETSTAGE;   
+    
+-- SELECT * FROM @MANAGE_DB.EXTERNAL_STAGES.PARQUETSTAGE;
+
+CREATE OR REPLACE table OUR_FIRST_DB.PUBLIC.PARQUET_RAW (
+    raw_file variant);
+
+COPY INTO OUR_FIRST_DB.PUBLIC.PARQUET_RAW
+    FROM @MANAGE_DB.EXTERNAL_STAGES.PARQUETSTAGE
+    file_format= MANAGE_DB.FILE_FORMATS.PARQUETFORMAT;
+
+SELECT * FROM OUR_FIRST_DB.PUBLIC.PARQUET_RAW;
+
+create or replace table our_first_db.public.processed_parquet as
+SELECT 
+$1:__index_level_0__::int index_level,
+$1:cat_id::VARCHAR(50) category,
+DATE($1:date::int ) Date,
+$1:dept_id::VARCHAR(50) Dept_ID,
+$1:id::VARCHAR(50) ID,
+$1:item_id::VARCHAR(50) Item_ID,
+$1:state_id::VARCHAR(50) State_ID,
+$1:store_id::VARCHAR(50) Store_ID,
+$1:value::int value,
+METADATA$FILENAME FILENAME,
+METADATA$FILE_ROW_NUMBER ROWNUMBER,
+TO_TIMESTAMP_NTZ(current_timestamp) LOAD_DATE
+FROM @MANAGE_DB.EXTERNAL_STAGES.PARQUETSTAGE;
+
+select * from our_first_db.public.processed_parquet limit 10;
